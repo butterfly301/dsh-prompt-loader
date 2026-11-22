@@ -1,0 +1,1 @@
+{"meta":{"title":"Prompt loader","description":"Injects a system-prompt section that is selected by the active DSH language and hot-reloads on edits. Prompt text comes from per-language TXT files."}}

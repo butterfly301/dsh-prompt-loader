@@ -1,0 +1,11 @@
+# Inserts the `prompt-loader` row for standalone installation.
+#   pack.dir  — directory of `<langId>.txt` files (file stem = language id, body = prompt text)
+#   pack.ext  — file extension (default .txt)
+#   pack.name / order / complete — section identity and placement
+# Missing or `false` `pack` injects nothing.
+# Override this row (or insert your own) with pack.dir pointing at your text files.
+- insert:
+    - id: prompt-loader
+      name: 'dsh-prompt-loader'
+      config:
+        pack: false

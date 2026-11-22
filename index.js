@@ -29,9 +29,12 @@ const pack = z.object({
   name: z.string().default('injected:prompt'),
   order: z.number().default(50),
   complete: z.boolean().default(false),
-  // Directory of `<langId>.txt` files. File stem = language id, body = text.
-  dir: z.string().required(),
+  // Directory of `<langId><ext>` files. File stem = language id, body = text.
+  dir: z.string(),
   ext: z.string().default('.txt'),
+  // Inline `{ [langId]: text }` map. Overrides matching ids loaded from `dir`
+  // and allows live editing through DSH settings without touching files.
+  texts: z.dict(z.string()),
 });
 
 /** Volatile: the plugin holds no user settings and never writes config back. */
@@ -84,6 +87,21 @@ function loadTexts(dir, ext) {
   return result;
 }
 
+/** Merge directory `<langId><ext>` files with inline `pack.texts` overrides. */
+function resolveTexts(current) {
+  const result = current && typeof current.dir === 'string' && current.dir
+    ? loadTexts(current.dir, current.ext || '.txt')
+    : {};
+  if (current && current.texts && typeof current.texts === 'object') {
+    for (const [id, raw] of Object.entries(current.texts)) {
+      const text = typeof raw === 'string' ? raw.trim() : '';
+      if (text) result[id] = text;
+      else delete result[id];
+    }
+  }
+  return result;
+}
+
 /**
  * Pick from a `{ [langId]: value }` map with no language hardcoded: exact id,
  * then matching primary BCP-47 subtag, then the first non-empty value.
@@ -130,15 +148,13 @@ export function apply(ctx, config = {}) {
 
   const refresh = () => {
     const current = unwrap(config.pack);
-    const texts = current && typeof current.dir === 'string'
-      ? loadTexts(current.dir, current.ext || '.txt')
-      : {};
+    const texts = current ? resolveTexts(current) : {};
     const preference = readPreference(ctx.settings);
     const text = pickLocalized(texts, preference);
     const next = current && text
       ? JSON.stringify([current.name, current.order, current.complete, text])
       : '';
-    ensureWatch(current && typeof current.dir === 'string' ? current.dir : null);
+    ensureWatch(current && typeof current.dir === 'string' && current.dir ? current.dir : null);
     if (next === signature) return;
     signature = next;
     if (dispose) {
@@ -155,8 +171,8 @@ export function apply(ctx, config = {}) {
   };
 
   ctx.effect(() => {
-    ctx.on?.('loader/volatile-update', refresh);
-    ctx.on?.('settings/document-updated', (ns) => {
+    const offVolatile = ctx.on?.('loader/volatile-update', refresh);
+    const offDoc = ctx.on?.('settings/document-updated', (ns) => {
       if (String(ns) === 'locale' || String(ns) === 'prompt-loader') refresh();
     });
     refresh();
@@ -164,6 +180,8 @@ export function apply(ctx, config = {}) {
     const timer = setTimeout(refresh, 0);
     return () => {
       clearTimeout(timer);
+      try { offVolatile?.(); } catch {}
+      try { offDoc?.(); } catch {}
       try { watcher?.close(); } catch {}
       watcher = null;
       watchedDir = null;

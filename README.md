@@ -45,8 +45,9 @@ content/prompts/
 
 | 字段 | 类型 | 默认值 | 含义 |
 |---|---|---|---|
-| `pack.dir` | `string` | （必填） | TXT 目录，文件名 = 语言 ID |
+| `pack.dir` | `string` | （可选） | TXT 目录，文件名 = 语言 ID |
 | `pack.ext` | `string` | `.txt` | 文件扩展名 |
+| `pack.texts` | `Record<string, string>` | （可选） | 按语言 ID 提供的内联提示词映射，同名语言覆盖 `pack.dir`，支持通过设置页在线编辑 |
 | `pack.name` | `string` | `injected:prompt` | section 名（同 scope 内唯一） |
 | `pack.order` | `number` | `50` | 排序（人格段 0，工具段 100–199） |
 | `pack.complete` | `boolean` | `false` | 为 true 时取代全部其他 section |

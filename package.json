@@ -1,8 +1,8 @@
 {
   "name": "dsh-prompt-loader",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Inject a system-prompt section into a DeepSeek Harness agent. Prompt text is read from per-language TXT files and hot-reloads on edits or language switches.",
+  "description": "Inject a system-prompt section into a DeepSeek Harness agent from per-language TXT files or inline text maps, with hot-reload on edits or language switches.",
   "license": "MIT",
   "repository": {
     "type": "git",

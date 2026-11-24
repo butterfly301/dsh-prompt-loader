@@ -20,9 +20,20 @@ import { readdirSync, readFileSync, watch } from 'node:fs';
 const localRequire = createRequire(import.meta.url);
 const hostRoot = process.env.DSH_INSTALL_DIR
   ?? (process.resourcesPath && join(process.resourcesPath, 'app.asar', 'dsh', 'node_modules', '@deepseek-ai', 'dsh'));
-const schemastery = hostRoot
-  ? createRequire(join(hostRoot, 'package.json'))('@deepseek-ai/schemastery')
-  : localRequire('@deepseek-ai/schemastery');
+function loadSchemastery() {
+  try {
+    return hostRoot
+      ? createRequire(join(hostRoot, 'package.json'))('@deepseek-ai/schemastery')
+      : localRequire('@deepseek-ai/schemastery');
+  } catch (err) {
+    if (err?.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes('@deepseek-ai/schemastery')) {
+      throw err;
+    }
+    const chain = () => ({ default: chain, min: chain, max: chain, volatile: chain });
+    return { object: chain, string: chain, number: chain, boolean: chain, array: chain, dict: chain, union: chain, const: chain };
+  }
+}
+const schemastery = loadSchemastery();
 const z = schemastery.default ?? schemastery;
 
 const pack = z.object({
@@ -104,9 +115,10 @@ function resolveTexts(current) {
 
 /**
  * Pick from a `{ [langId]: value }` map with no language hardcoded: exact id,
- * then matching primary BCP-47 subtag, then the first non-empty value.
+ * then matching primary BCP-47 subtag, then English (`en` / `en-*`), then the
+ * first non-empty value.
  */
-function pickLocalized(map, preference) {
+export function pickLocalized(map, preference) {
   if (!map || typeof map !== 'object') return '';
   if (preference && typeof map[preference] === 'string' && map[preference]) return map[preference];
   const want = primary(preference);
@@ -114,6 +126,10 @@ function pickLocalized(map, preference) {
     for (const [id, text] of Object.entries(map)) {
       if (primary(id) === want && typeof text === 'string' && text) return text;
     }
+  }
+  if (typeof map.en === 'string' && map.en) return map.en;
+  for (const [id, text] of Object.entries(map)) {
+    if (primary(id) === 'en' && typeof text === 'string' && text) return text;
   }
   for (const text of Object.values(map)) {
     if (typeof text === 'string' && text) return text;

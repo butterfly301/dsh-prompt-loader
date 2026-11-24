@@ -1,6 +1,6 @@
 {
   "name": "dsh-prompt-loader",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "description": "Inject a system-prompt section into a DeepSeek Harness agent from per-language TXT files or inline text maps, with hot-reload on edits or language switches.",
   "license": "MIT",
@@ -22,6 +22,9 @@
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg",
     "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
   },
   "files": [
     "index.js",

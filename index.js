@@ -1,18 +1,3 @@
-/**
- * Inject a localized, hot-reloadable system-prompt section into a DSH agent.
- *
- * This plugin ships no wording of its own. `pack.dir` points at a directory of
- * plain-text files: each file name (minus its extension) is a language id, and
- * its content is that language's prompt text. The plugin scans the directory,
- * picks the text matching DSH's active `locale.preference`, and (re)registers
- * the section whenever the text, the language, or the files change. Adding a
- * language means dropping in one more file — no code or config edits.
- *
- * The `systemPrompt` service is provided by `@deepseek-ai/dsh-base`; the
- * `settings` service by `@deepseek-ai/dsh-settings`. No runtime dependencies.
- * @module dsh-prompt-loader
- */
-
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { readdirSync, readFileSync, watch } from 'node:fs';
@@ -29,7 +14,7 @@ function loadSchemastery() {
     if (err?.code !== 'MODULE_NOT_FOUND' || !String(err.message).includes('@deepseek-ai/schemastery')) {
       throw err;
     }
-    const chain = () => ({ default: chain, min: chain, max: chain, volatile: chain });
+    const chain = () => ({ default: chain, min: chain, max: chain, pattern: chain, volatile: chain });
     return { object: chain, string: chain, number: chain, boolean: chain, array: chain, dict: chain, union: chain, const: chain };
   }
 }
@@ -40,31 +25,20 @@ const pack = z.object({
   name: z.string().default('injected:prompt'),
   order: z.number().default(50),
   complete: z.boolean().default(false),
-  // Directory of `<langId><ext>` files. File stem = language id, body = text.
   dir: z.string(),
   ext: z.string().default('.txt'),
-  // Inline `{ [langId]: text }` map. Overrides matching ids loaded from `dir`
-  // and allows live editing through DSH settings without touching files.
   texts: z.dict(z.string()),
 });
 
-/** Volatile: the plugin holds no user settings and never writes config back. */
 export const Config = z.object({ pack: z.union([z.const(false), pack]).default(false).volatile() });
 
-/** Cordis plugin name. */
 export const name = 'prompt-loader';
 
-/** Host services consumed by this plugin. */
 export const inject = ['systemPrompt', 'settings'];
 
 const unwrap = (field) => (field && typeof field.get === 'function' ? field.get() : field);
 const primary = (lang) => String(lang ?? '').split(/[-_]/)[0].toLowerCase();
 
-/**
- * Read the DSH active-language preference from the `locale` settings document.
- * The host realm has no `locale/change` event; `locale.preference` is the only
- * reliable signal available here (the client bridges its active locale back).
- */
 function readPreference(settings) {
   try {
     const entries = typeof settings?.describe === 'function' ? settings.describe() : [];
@@ -76,7 +50,6 @@ function readPreference(settings) {
   }
 }
 
-/** Load `{ [langId]: text }` from every `<langId><ext>` file in a directory. */
 function loadTexts(dir, ext) {
   const result = {};
   let names;
@@ -92,13 +65,11 @@ function loadTexts(dir, ext) {
       const text = readFileSync(join(dir, name), 'utf8').trim();
       if (text) result[id] = text;
     } catch {
-      // Unreadable file: skip it rather than dropping the whole section.
     }
   }
   return result;
 }
 
-/** Merge directory `<langId><ext>` files with inline `pack.texts` overrides. */
 function resolveTexts(current) {
   const result = current && typeof current.dir === 'string' && current.dir
     ? loadTexts(current.dir, current.ext || '.txt')
@@ -113,36 +84,27 @@ function resolveTexts(current) {
   return result;
 }
 
-/**
- * Pick from a `{ [langId]: value }` map with no language hardcoded: exact id,
- * then matching primary BCP-47 subtag, then English (`en` / `en-*`), then the
- * first non-empty value.
- */
 export function pickLocalized(map, preference) {
   if (!map || typeof map !== 'object') return '';
-  if (preference && typeof map[preference] === 'string' && map[preference]) return map[preference];
+  if (preference && typeof map[preference] === 'string' && map[preference].trim()) {
+    return map[preference].trim();
+  }
   const want = primary(preference);
   if (want) {
     for (const [id, text] of Object.entries(map)) {
-      if (primary(id) === want && typeof text === 'string' && text) return text;
+      if (primary(id) === want && typeof text === 'string' && text.trim()) return text.trim();
     }
   }
-  if (typeof map.en === 'string' && map.en) return map.en;
+  if (typeof map.en === 'string' && map.en.trim()) return map.en.trim();
   for (const [id, text] of Object.entries(map)) {
-    if (primary(id) === 'en' && typeof text === 'string' && text) return text;
+    if (primary(id) === 'en' && typeof text === 'string' && text.trim()) return text.trim();
   }
   for (const text of Object.values(map)) {
-    if (typeof text === 'string' && text) return text;
+    if (typeof text === 'string' && text.trim()) return text.trim();
   }
   return '';
 }
 
-/**
- * Register the localized section and keep it in sync with file edits, config
- * edits, and language switches.
- * @param {import('@deepseek-ai/cordis').Context} ctx
- * @param {object} config - `{ pack }`
- */
 export function apply(ctx, config = {}) {
   ctx.inject(['settings'], (scope) => scope.effect(
     () => scope.settings.configure({ auto: false }, ctx.fiber),
@@ -192,7 +154,6 @@ export function apply(ctx, config = {}) {
       if (String(ns) === 'locale' || String(ns) === 'prompt-loader') refresh();
     });
     refresh();
-    // Deferred pass in case the locale settings document lands after mount.
     const timer = setTimeout(refresh, 0);
     return () => {
       clearTimeout(timer);

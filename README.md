@@ -4,6 +4,14 @@
 
 此包是 [`dsh-pirate-mode`](https://github.com/butterfly301/dsh-pirate-mode) 的组件，也可以单独安装使用。
 
+## 独立安装
+
+```bash
+dsh plugin --profile desktop add dsh-prompt-loader
+```
+
+默认 `pack: false`，装完不注入任何提示词；按下方片段提供目录或文本后生效。
+
 ## 作用
 
 `systemPrompt.section()` 注册的 section 支持动态注销与重注册。本插件监听 `settings/document-updated`（`locale` 与自身命名空间）、`loader/volatile-update` 以及目录的文件变动，重新读取并注册：

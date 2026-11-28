@@ -1,6 +1,6 @@
 {
   "name": "dsh-prompt-loader",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "type": "module",
   "description": "Inject a system-prompt section into a DeepSeek Harness agent from per-language TXT files or inline text maps, with hot-reload on edits or language switches.",
   "license": "MIT",
@@ -13,7 +13,7 @@
     "url": "https://github.com/butterfly301/dsh-prompt-loader/issues"
   },
   "engines": {
-    "node": ">=24.9.0",
+    "node": ">=20",
     "dsh": ">=0.2.2-rc.5 <0.3.0"
   },
   "main": "index.js",
